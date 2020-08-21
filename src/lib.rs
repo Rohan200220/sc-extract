@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 //! Library to extract compressed/encoded raw `_tex.sc` and `.csv` files used in Supercell games.
 //!
 //! The library exposes two high-level functions, `process_sc` and `process_csv`, to process
@@ -11,9 +13,9 @@
 //! - create a clone or any other game based on Supercell games
 //! - make profit
 
-pub mod errors;
+pub mod error;
 mod extractors;
 mod utils;
 
 #[doc(inline)]
-pub use extractors::{csv::process_csv, tex::process_sc};
+pub use extractors::{csv::process_csv, sc::process_sc, tex::process_tex};

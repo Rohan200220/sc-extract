@@ -1,5 +1,5 @@
 use crate::{
-    errors::{DecompressionError, UnknownPixel},
+    error::Error,
     utils::{decompress, Reader},
 };
 use colored::Colorize;
@@ -18,7 +18,7 @@ use std::path::Path;
 ///
 /// * `reader`: `Reader` representing the data stream.
 /// * `pixel_type`: The type of pixel. For `_tex.sc` data, it is the image sub-type.
-fn convert_pixel(reader: &mut Reader, pixel_type: u8) -> Result<[u8; 4], UnknownPixel> {
+fn convert_pixel(reader: &mut Reader, pixel_type: u8) -> Result<[u8; 4], Error> {
     match pixel_type {
         // RGB8888
         0 | 1 => {
@@ -70,7 +70,7 @@ fn convert_pixel(reader: &mut Reader, pixel_type: u8) -> Result<[u8; 4], Unknown
             let pixel = reader.read_byte();
             Ok([pixel; 4])
         }
-        _ => Err(UnknownPixel(format!(
+        _ => Err(Error::UnknownPixel(format!(
             "Unknown pixel type ({}).",
             pixel_type
         ))),
@@ -78,7 +78,7 @@ fn convert_pixel(reader: &mut Reader, pixel_type: u8) -> Result<[u8; 4], Unknown
 }
 
 /// Adjusts some pixels.
-fn adjust_pixels(img: &mut RgbaImage, pixels: Vec<[u8; 4]>, height: u16, width: u16) {
+fn adjust_pixels(img: &mut RgbaImage, pixels: Vec<[u8; 4]>, height: u32, width: u32) {
     let mut i = 0;
     let block_size = 32;
     let h_limit = (height as f64 / block_size as f64).ceil() as u32;
@@ -106,15 +106,15 @@ fn adjust_pixels(img: &mut RgbaImage, pixels: Vec<[u8; 4]>, height: u16, width: 
 
 /// Processes compressed, raw `_tex.sc` file data.
 ///
-/// If decompressing and pixel conversion is successful, the resultant image
-/// is saved in `PNG` format in the output directory (`out_dir`).
+/// If decompressing and pixel conversion is successful, the resultant png
+/// image is saved in the output directory (`out_dir`).
 ///
-/// If decompression is unsuccessful, `DecompressionError` is raised. Pixel
-/// conversion errors are handled in the function itself.
+/// If decompression is unsuccessful, [`Error::DecompressionError`] is returned.
+/// Pixel conversion errors are handled in the function itself.
 ///
-/// A single `_tex.sc` file can contain data for multiple sprites. All of the sprites
-/// are extracted and saved by this process. `_`s are appended to the file name in cases
-/// of multiple sprites.
+/// A single `_tex.sc` file can contain data for multiple sprites. All of the
+/// sprites are extracted and saved by this process. `_`s are appended to the
+/// file name in cases of multiple sprites.
 ///
 /// ## Arguments
 ///
@@ -122,33 +122,29 @@ fn adjust_pixels(img: &mut RgbaImage, pixels: Vec<[u8; 4]>, height: u16, width: 
 /// * `path`: Path to the `_tex.sc` file. It is used to get file name.
 /// * `out_dir`: Directory to store extracted images.
 /// * `parallelize`: Whether files are processed in parallel or not.
-pub fn process_sc(
+///
+/// [`Error::DecompressionError`]: ./error/enum.Error.html#variant.DecompressionError
+pub fn process_tex(
     data: &[u8],
-    path: &Path,
+    file_name: &str,
     out_dir: &Path,
     parallelize: bool,
-) -> Result<(), DecompressionError> {
+) -> Result<(), Error> {
     if data.len() < 35 {
-        return Err(DecompressionError("Size of file is too small:".to_string()));
+        return Err(Error::DecompressionError(
+            "Size of file is too small".to_string(),
+        ));
     }
 
-    let decompressed = match decompress(&data[26..]) {
-        Ok(c) => c,
-        Err(e) => return Err(e),
-    };
+    let decompressed = decompress(&data[26..])?;
 
     let mut reader = Reader::new(decompressed);
 
     let mut pic_count = 0;
     let possible_types = [1, 24, 27, 28];
 
-    let file_name = path.file_stem().unwrap().to_str().unwrap();
-
     if !parallelize {
-        println!(
-            "\nExtracting {} image(s)...",
-            path.file_name().unwrap().to_str().unwrap().green().bold()
-        );
+        println!("\nExtracting {} image(s)...", file_name);
     }
 
     'main: while reader.len() > 0 {
@@ -161,8 +157,8 @@ pub fn process_sc(
         }
 
         let sub_type = reader.read_byte();
-        let width = reader.read_uint16();
-        let height = reader.read_uint16();
+        let width = reader.read_uint16() as u32;
+        let height = reader.read_uint16() as u32;
 
         println!(
             "file_type: {}, file_size: {}, sub_type: {}, width: {}, height: {}",
@@ -174,19 +170,19 @@ pub fn process_sc(
         );
 
         let mut pixels = Vec::new();
-        let mut img = RgbaImage::new(width as u32, height as u32);
+        let mut img = RgbaImage::new(width, height);
         for y in 0..height {
             for x in 0..width {
-                let [one, two, three, four] = match convert_pixel(&mut reader, sub_type) {
+                let pixel_data = match convert_pixel(&mut reader, sub_type) {
                     Ok(v) => v,
                     Err(e) => {
-                        println!("Error: {}", e.0.red());
+                        println!("Error: {}", e.inner().red());
                         continue 'main;
                     }
                 };
-                pixels.push([one, two, three, four]);
-                // img.put_pix
-                img.put_pixel(x as u32, y as u32, Rgba([one, two, three, four]));
+                pixels.push(pixel_data);
+
+                img.put_pixel(x, y, Rgba(pixel_data));
             }
         }
 
@@ -194,14 +190,11 @@ pub fn process_sc(
             adjust_pixels(&mut img, pixels, height, width);
         }
 
-        let initial_path = out_dir.join(file_name);
-        let path = format!(
-            "{}{}.png",
-            initial_path.to_str().unwrap(),
-            "_".repeat(pic_count)
-        );
-        img.save(path)
-            .unwrap_or_else(|_| panic!("Failed to save image!".red()));
+        let initial_path = out_dir.join(file_name.replace(".sc", ""));
+        let path = format!("{}{}.png", initial_path.display(), "_".repeat(pic_count));
+        if let Err(_) = img.save(path) {
+            return Err(Error::IoError("Failed to save image!".red().to_string()));
+        }
 
         pic_count += 1;
     }
