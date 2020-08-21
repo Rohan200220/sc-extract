@@ -167,7 +167,7 @@ fn process_file(
                     fs::create_dir(&out_dir).unwrap();
                 }
 
-                process_sc(&data, file_name, &out_dir, png_dir)
+                process_sc(&data, file_name, &out_dir, png_dir, parallelize)
             }
         }
     } else {

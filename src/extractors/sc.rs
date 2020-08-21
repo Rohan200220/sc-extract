@@ -162,6 +162,10 @@ impl Rotation {
 /// A single `.sc` file contains data for multiple sprites. All of the
 /// sprites are extracted and saved by this process in the `out_dir`.
 ///
+/// `parallelize` tells if the directory files are processed parallelly. It is
+/// simply used to control the stdout output. Within this function, sprites are
+/// always processed parallelly to increase efficiency.
+///
 /// ## Errors
 ///
 /// If the png images are not present, [`Error::Other`] is returned.
@@ -179,8 +183,11 @@ pub fn process_sc(
     file_name: &str,
     out_dir: &Path,
     png_dir: &Path,
+    parallelize: bool,
 ) -> Result<(), Error> {
-    println!("\nProcessing `{}` image(s)...", file_name.green().bold());
+    if !parallelize {
+        println!("\nProcessing `{}` image(s)...", file_name.green().bold());
+    }
 
     let mut stream = Reader::new(Cursor::new(data.to_vec()));
     let mut offset_shape = 0;
