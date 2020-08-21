@@ -4,18 +4,17 @@ use std::{fs, path::Path};
 
 /// Processes encoded, raw `.csv` file data.
 ///
-/// The data passed here must be **compressed/raw**. Passing uncompressed or decoded
-/// csv file data will result in [`Error::DecompressionError`].
+/// The data passed here must be **compressed/raw**. Passing uncompressed or
+/// decoded csv file data will result in [`Error::DecompressionError`].
+///
+/// ## Error
 ///
 /// If decompression is unsuccessful, [`Error::DecompressionError`] is returned.
 ///
-/// ## Arguments
-///
-/// * `data`: Raw `.csv` file data.
-/// * `path`: Path to the `.csv` file. It is used to get file name.
-/// * `out_dir`: Directory to store extracted csv files.
+/// [`Error::IoError`] is returned if an IO operation fails.
 ///
 /// [`Error::DecompressionError`]: ./error/enum.Error.html#variant.DecompressionError
+/// [`Error::IoError`]: ./error/enum.Error.html#variant.IoError
 pub fn process_csv(data: &[u8], file_name: &str, out_dir: &Path) -> Result<(), Error> {
     let decompressed = match decompress(data) {
         Ok(c) => c,

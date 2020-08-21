@@ -109,21 +109,22 @@ fn adjust_pixels(img: &mut RgbaImage, pixels: Vec<[u8; 4]>, height: u32, width: 
 /// If decompressing and pixel conversion is successful, the resultant png
 /// image is saved in the output directory (`out_dir`).
 ///
-/// If decompression is unsuccessful, [`Error::DecompressionError`] is returned.
-/// Pixel conversion errors are handled in the function itself.
-///
 /// A single `_tex.sc` file can contain data for multiple sprites. All of the
 /// sprites are extracted and saved by this process. `_`s are appended to the
 /// file name in cases of multiple sprites.
 ///
-/// ## Arguments
+/// `parallelize` tells if the directory files are processed parallelly. It is
+/// simply used to control the stdout output.
 ///
-/// * `data`: Raw `_tex.sc` file data.
-/// * `path`: Path to the `_tex.sc` file. It is used to get file name.
-/// * `out_dir`: Directory to store extracted images.
-/// * `parallelize`: Whether files are processed in parallel or not.
+/// ## Errors
+///
+/// If decompression is unsuccessful, [`Error::DecompressionError`] is returned.
+/// Pixel conversion errors are handled in the function itself.
+///
+/// [`Error::IoError`] is returned if an IO operation fails.
 ///
 /// [`Error::DecompressionError`]: ./error/enum.Error.html#variant.DecompressionError
+/// [`Error::IoError`]: ./error/enum.Error.html#variant.IoError
 pub fn process_tex(
     data: &[u8],
     file_name: &str,
