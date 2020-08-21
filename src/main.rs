@@ -94,10 +94,8 @@ fn get_file_type(data: &[u8], path: &PathBuf, filter: bool) -> Option<FileType> 
     // Some common mistakenly used file types are filtered here.
     let path_str = path.file_name().unwrap().to_str().unwrap();
 
-    if filter {
-        if [".DS_Store", "quickbms"].contains(&path_str) {
-            return None;
-        }
+    if filter && [".DS_Store", "quickbms"].contains(&path_str) {
+        return None;
     }
 
     if data.is_empty() {

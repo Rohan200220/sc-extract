@@ -193,7 +193,7 @@ pub fn process_tex(
 
         let initial_path = out_dir.join(file_name.replace(".sc", ""));
         let path = format!("{}{}.png", initial_path.display(), "_".repeat(pic_count));
-        if let Err(_) = img.save(path) {
+        if img.save(path).is_err() {
             return Err(Error::IoError("Failed to save image!".red().to_string()));
         }
 
