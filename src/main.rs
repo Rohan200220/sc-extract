@@ -1,9 +1,10 @@
 use colored::Colorize;
 use rayon::prelude::*;
-use sc_extract::{process_csv, process_sc};
+use sc_extract::{process_csv, process_sc, process_tex};
 use std::{
     fs,
     path::PathBuf,
+    str::FromStr,
     sync::atomic::{AtomicBool, Ordering},
 };
 use structopt::StructOpt;
@@ -27,15 +28,51 @@ struct Options {
     /// Extracts all images in parallel. It makes the process faster.
     #[structopt(short = "p", long = "parallelize")]
     parallelize: bool,
+
+    /// The path to directory where a `_tex.sc` file's extracted images are stored.
+    /// It is required for cutting images using extracted `.sc` files. If the
+    /// path is not specified, sc_extract will look for the png files in the
+    /// directory where the source (extracted `.sc`) file(s) is/are present.
+    #[structopt(parse(from_os_str), short = "P", long = "png")]
+    png_dir: Option<PathBuf>,
+
+    /// Specifies the type of files you want to extract. Possible values are
+    /// "csv", "sc" and "tex". By default, all types are considered.
+    #[structopt(short = "t", long = "type")]
+    kind: Option<FileType>,
+
+    /// sc_extract autmatically filters some common error-prone files like
+    /// `quickbms` and `.DS_Store`. You can disable this filter by adding this
+    /// flag.
+    #[structopt(short = "F", long = "disable-filter")]
+    disable_filter: bool,
 }
 
-/// Checks if file path ends with `_tex.sc` or `.csv`.
-fn is_valid_file(path: &PathBuf) -> bool {
-    path.to_str().unwrap().ends_with("_tex.sc") || path.to_str().unwrap().ends_with(".csv")
+/// Represents a single file type.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum FileType {
+    /// Represents `.csv` files.
+    Csv,
+    /// Represents `.sc` files.
+    Sc,
+    /// Represents `_tex.sc` files.
+    Tex,
 }
 
-/// Deletes the file with given path.
-/// It deletion fails, prints it on stdout.
+impl FromStr for FileType {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "csv" => Ok(Self::Csv),
+            "sc" => Ok(Self::Sc),
+            "tex" => Ok(Self::Tex),
+            _ => Err("File type must be one of `csv`, `sc` and `tex`.")
+        }
+    }
+}
+
+/// Deletes the file with given path. It deletion fails, prints it on stdout.
 fn delete_file(path: &PathBuf) {
     match fs::remove_file(&path) {
         Ok(_) => (),
@@ -47,17 +84,30 @@ fn delete_file(path: &PathBuf) {
     };
 }
 
-/// Checks if data has correct header and returns Option<header_type>,
-/// where header_type can be "sc" or "csv", depending on the data.
+/// Returns correct file type depending on the file extension and/or data.
+///
+/// If the extension and/or data don't match any expected file type,
+/// `None` is returned.
 ///
 /// The data passed here must be compressed/raw.
-fn check_header(data: &[u8]) -> Option<&'static str> {
+fn get_file_type(data: &[u8], path: &PathBuf, filter: bool) -> Option<FileType> {
+    // Some common mistakenly used file types are filtered here.
+    let path_str = path.file_name().unwrap().to_str().unwrap();
+
+    if filter {
+        if [".DS_Store", "quickbms"].contains(&path_str) {
+            return None;
+        }
+    }
+
     if data.is_empty() {
         None
-    } else if data[0] == 83 {
-        Some("sc")
-    } else if data[..2] == [93, 0] {
-        Some("csv")
+    } else if path.extension().is_none() {
+        Some(FileType::Sc)
+    } else if data[0] == 83 && path_str.ends_with("_tex.sc") {
+        Some(FileType::Tex)
+    } else if data.len() >= 2 && data[..2] == [93, 0] && path_str.ends_with(".csv") {
+        Some(FileType::Csv)
     } else {
         None
     }
@@ -65,48 +115,73 @@ fn check_header(data: &[u8]) -> Option<&'static str> {
 
 /// Processes the given file (path).
 ///
-/// It automatically detects file type (`_tex.sc` or `.csv`) and processes them appropriately.
-/// If processing a file fails, formatted error messages gets printed on `stdout`.
-/// In case of lack of permissions, the process may panic.
+/// It automatically detects file type (`_tex.sc`, `.csv` or extracted `.sc`)
+/// and processes them appropriately. If processing a file fails, formatted
+/// error messages gets printed on `stdout`.
 ///
-/// ## Arguments
+/// ## Panic
 ///
-/// * `path`: Reference to the file path.
-/// * `out_dir`: Path to directory where `extracts` folder is created to store extracts.
-/// * `delete`: Whether to delete file after extraction or not.
-/// * `parallelize`: Whether files are processed in parallel or not.
+/// The process may panic in case of lack of permissions to read/write files.
 fn process_file(
     path: &PathBuf,
     out_dir: &PathBuf,
-    delete: bool,
     parallelize: bool,
+    opts: &Options,
 ) -> Result<(), ()> {
-    let data = fs::read(&path).unwrap();
+    let data = match fs::read(&path) {
+        Ok(d) => d,
+        Err(_) => return Err(()),
+    };
 
-    let process = check_header(data.as_slice());
-
-    let process_fn = match process {
-        Some("sc") => process_sc,
-        Some("csv") => process_csv,
-        _ => {
-            println!(
-                "{}",
-                format!(
-                    "File has `_tex.sc` or `.csv` extension but is actually of unknown type: {}",
-                    path.to_str().unwrap().bold()
-                )
-                .yellow()
-            );
-            return Err(());
+    let res = if let Some(file_type) = get_file_type(data.as_slice(), path, !opts.disable_filter) {
+        if let Some(ft) = opts.kind {
+            if ft != file_type {
+                return Ok(());
+            }
         }
+        let file_name = path
+            .file_name()
+            .expect("Expected file to have a name.")
+            .to_str()
+            .expect("Expected file to have a valid UTF-8 name.");
+
+        match file_type {
+            FileType::Tex => process_tex(&data, file_name, &out_dir, parallelize),
+            FileType::Csv => process_csv(&data, file_name, &out_dir),
+            FileType::Sc => {
+                let png_dir = match opts.png_dir.as_ref() {
+                    Some(p) => p,
+                    None => match path.parent() {
+                        Some(p) => p,
+                        None => {
+                            println!("{}", "Could not determine the path for png files.".red());
+
+                            return Ok(());
+                        }
+                    },
+                };
+
+                let out_dir = out_dir.join(format!("{}_out", file_name));
+                if !out_dir.exists() {
+                    // We want to panic if a directory can't be created.
+                    fs::create_dir(&out_dir).unwrap();
+                }
+
+                process_sc(&data, file_name, &out_dir, png_dir, parallelize)
+            }
+        }
+    } else {
+        return Err(());
     };
 
-    match process_fn(&data, &path, &out_dir, parallelize) {
-        Ok(_) => (),
-        Err(e) => println!("\n{} {}", e.0.red(), path.to_str().unwrap().red()),
-    };
+    if let Err(e) = res {
+        println!("\n{}: {}", e.inner().red(), path.to_str().unwrap().red());
 
-    if delete {
+        // Don't delete file if there was an error.
+        return Ok(());
+    }
+
+    if opts.delete {
         delete_file(&path);
     }
 
@@ -149,27 +224,29 @@ fn main() {
                 std::process::exit(1);
             }
         };
+
         let mut entries = Vec::new();
         for entry in dir_entries {
             entries.push(entry);
         }
+
         if opts.parallelize {
             entries.into_par_iter().for_each(|entry| {
                 let path = entry.unwrap().path();
-                if is_valid_file(&path) && process_file(&path, &out_dir, opts.delete, true).is_ok()
-                {
+                if process_file(&path, &out_dir, true, &opts).is_ok() {
                     found_one.compare_and_swap(false, true, Ordering::AcqRel);
                 }
             })
         } else {
             for entry in entries {
                 let path = entry.unwrap().path();
-                if is_valid_file(&path) && process_file(&path, &out_dir, opts.delete, false).is_ok()
+                if process_file(&path, &out_dir, false, &opts).is_ok()
                 {
                     found_one.compare_and_swap(false, true, Ordering::AcqRel);
                 }
             }
         }
+
         if !found_one.into_inner() {
             println!(
                 "{}",
@@ -180,19 +257,12 @@ fn main() {
             std::process::exit(1);
         }
     } else if opts.path.is_file() {
-        if is_valid_file(&opts.path) {
-            if process_file(&opts.path, &out_dir, opts.delete, false).is_err() {
-                return;
-            }
-        } else {
-            println!(
-                "{}",
-                "Given file doesn't appear to be an `_tex.sc` or `.csv` file!"
-                    .red()
-                    .bold()
-            );
-            std::process::exit(1);
-        }
+        let _ = process_file(
+            &opts.path,
+            &out_dir,
+            false,
+            &opts
+        );
     }
 
     println!("\n{}", "Extraction finished!".green().bold());
