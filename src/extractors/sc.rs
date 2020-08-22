@@ -9,6 +9,7 @@ use imageproc::{
 };
 use rayon::prelude::*;
 use std::{
+    cmp::Ordering,
     io::Cursor,
     path::Path,
     sync::{Arc, Mutex},
@@ -42,7 +43,7 @@ impl Point {
 }
 
 /// Struct to represent a region on a sheet.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct Region {
     sheet_id: u32,
     num_points: u32,
@@ -58,42 +59,6 @@ struct Region {
     left: i32,
     bottom: i32,
     right: i32,
-}
-
-impl Region {
-    fn new(
-        sheet_id: u32,
-        num_points: u32,
-        rotation: u32,
-        mirroring: u32,
-        shape_points: Vec<Point>,
-        sheet_points: Vec<Point>,
-        sprite_width: u32,
-        sprite_height: u32,
-        region_zero_x: u32,
-        region_zero_y: u32,
-        top: i32,
-        left: i32,
-        bottom: i32,
-        right: i32,
-    ) -> Self {
-        Self {
-            sheet_id,
-            num_points,
-            rotation,
-            mirroring,
-            shape_points,
-            sheet_points,
-            sprite_width,
-            sprite_height,
-            region_zero_x,
-            region_zero_y,
-            top,
-            left,
-            bottom,
-            right,
-        }
-    }
 }
 
 /// Struct to represent a sprite item.
@@ -284,22 +249,13 @@ pub fn process_sc(
 
             let mut regions = Vec::new();
             for _ in 0..sprite_data[offset_shape].total_regions {
-                regions.push(Region::new(
-                    0,
-                    0,
-                    0,
-                    0,
-                    Vec::new(),
-                    Vec::new(),
-                    0,
-                    0,
-                    0,
-                    0,
-                    -32767,
-                    32767,
-                    32767,
-                    -32767,
-                ));
+                regions.push(Region {
+                    top: -32767,
+                    left: 32767,
+                    bottom: 32767,
+                    right: -32767,
+                    ..Default::default()
+                });
             }
             sprite_data[offset_shape].regions = regions;
 
@@ -417,8 +373,8 @@ fn write_shape(
 
     let mut sprite_global = SpriteGlobal::new(0, 0, 0, 0);
 
-    for x in 0..shape_count as usize {
-        for y in 0..sprite_data[x].total_regions as usize {
+    for sprite_item in sprite_data.iter_mut().take(shape_count as usize) {
+        for y in 0..sprite_item.total_regions as usize {
             let mut region_min_x = 32676;
             let mut region_max_x = -32676;
             let mut region_min_y = 32676;
@@ -427,33 +383,33 @@ fn write_shape(
             let mut temp_x;
             let mut temp_y;
 
-            for z in 0..sprite_data[x].regions[y].num_points as usize {
-                temp_x = sprite_data[x].regions[y].shape_points[z].x;
-                temp_y = sprite_data[x].regions[y].shape_points[z].y;
+            for z in 0..sprite_item.regions[y].num_points as usize {
+                temp_x = sprite_item.regions[y].shape_points[z].x;
+                temp_y = sprite_item.regions[y].shape_points[z].y;
 
-                sprite_data[x].regions[y].top = if temp_y > sprite_data[x].regions[y].top {
+                sprite_item.regions[y].top = if temp_y > sprite_item.regions[y].top {
                     temp_y
                 } else {
-                    sprite_data[x].regions[y].top
+                    sprite_item.regions[y].top
                 };
-                sprite_data[x].regions[y].left = if temp_x < sprite_data[x].regions[y].left {
+                sprite_item.regions[y].left = if temp_x < sprite_item.regions[y].left {
                     temp_x
                 } else {
-                    sprite_data[x].regions[y].left
+                    sprite_item.regions[y].left
                 };
-                sprite_data[x].regions[y].bottom = if temp_y < sprite_data[x].regions[y].bottom {
+                sprite_item.regions[y].bottom = if temp_y < sprite_item.regions[y].bottom {
                     temp_y
                 } else {
-                    sprite_data[x].regions[y].bottom
+                    sprite_item.regions[y].bottom
                 };
-                sprite_data[x].regions[y].right = if temp_x > sprite_data[x].regions[y].right {
+                sprite_item.regions[y].right = if temp_x > sprite_item.regions[y].right {
                     temp_x
                 } else {
-                    sprite_data[x].regions[y].right
+                    sprite_item.regions[y].right
                 };
 
-                temp_x = sprite_data[x].regions[y].sheet_points[z].x;
-                temp_y = sprite_data[x].regions[y].sheet_points[z].y;
+                temp_x = sprite_item.regions[y].sheet_points[z].x;
+                temp_y = sprite_item.regions[y].sheet_points[z].y;
 
                 region_min_x = if temp_x < region_min_x {
                     temp_x
@@ -477,30 +433,30 @@ fn write_shape(
                 };
             }
 
-            region_rotation(&mut sprite_data[x].regions[y]);
+            region_rotation(&mut sprite_item.regions[y]);
 
-            if sprite_data[x].regions[y].rotation == 90 || sprite_data[x].regions[y].rotation == 270
+            if sprite_item.regions[y].rotation == 90 || sprite_item.regions[y].rotation == 270
             {
-                sprite_data[x].regions[y].sprite_width = (region_max_y - region_min_y) as u32;
-                sprite_data[x].regions[y].sprite_height = (region_max_x - region_min_x) as u32;
+                sprite_item.regions[y].sprite_width = (region_max_y - region_min_y) as u32;
+                sprite_item.regions[y].sprite_height = (region_max_x - region_min_x) as u32;
             } else {
-                sprite_data[x].regions[y].sprite_width = (region_max_x - region_min_x) as u32;
-                sprite_data[x].regions[y].sprite_height = (region_max_y - region_min_y) as u32;
+                sprite_item.regions[y].sprite_width = (region_max_x - region_min_x) as u32;
+                sprite_item.regions[y].sprite_height = (region_max_y - region_min_y) as u32;
             }
 
-            temp_x = sprite_data[x].regions[y].sprite_width as i32;
-            temp_y = sprite_data[x].regions[y].sprite_height as i32;
+            temp_x = sprite_item.regions[y].sprite_width as i32;
+            temp_y = sprite_item.regions[y].sprite_height as i32;
 
             // Determine origin pixel (0. 0)
-            sprite_data[x].regions[y].region_zero_x = (sprite_data[x].regions[y].left as f64
+            sprite_item.regions[y].region_zero_x = (sprite_item.regions[y].left as f64
                 * (temp_x as f64)
-                / (sprite_data[x].regions[y].right - sprite_data[x].regions[y].left) as f64)
+                / (sprite_item.regions[y].right - sprite_item.regions[y].left) as f64)
                 .abs()
                 .round() as u32;
 
-            sprite_data[x].regions[y].region_zero_y = (sprite_data[x].regions[y].bottom as f64
+            sprite_item.regions[y].region_zero_y = (sprite_item.regions[y].bottom as f64
                 * (temp_y as f64)
-                / (sprite_data[x].regions[y].top - sprite_data[x].regions[y].bottom) as f64)
+                / (sprite_item.regions[y].top - sprite_item.regions[y].bottom) as f64)
                 .abs()
                 .round() as u32;
 
@@ -509,21 +465,21 @@ fn write_shape(
             // The higher the 0, more pixels to the left/top are required.
             // The higher the difference between the 0 and the image width/height,
             // more pixels to the right/bottom are required.
-            max_left = if sprite_data[x].regions[y].region_zero_x > max_left {
-                sprite_data[x].regions[y].region_zero_x
+            max_left = if sprite_item.regions[y].region_zero_x > max_left {
+                sprite_item.regions[y].region_zero_x
             } else {
                 max_left
             };
-            max_above = if sprite_data[x].regions[y].region_zero_y > max_above {
-                sprite_data[x].regions[y].region_zero_y
+            max_above = if sprite_item.regions[y].region_zero_y > max_above {
+                sprite_item.regions[y].region_zero_y
             } else {
                 max_above
             };
 
-            temp_x = (sprite_data[x].regions[y].sprite_width as i32
-                - sprite_data[x].regions[y].region_zero_x as i32) as i32;
-            temp_y = (sprite_data[x].regions[y].sprite_height as i32
-                - sprite_data[x].regions[y].region_zero_y as i32) as i32;
+            temp_x = (sprite_item.regions[y].sprite_width as i32
+                - sprite_item.regions[y].region_zero_x as i32) as i32;
+            temp_y = (sprite_item.regions[y].sprite_height as i32
+                - sprite_item.regions[y].region_zero_y as i32) as i32;
 
             max_right = if temp_x > max_right {
                 temp_x
@@ -611,11 +567,11 @@ fn write_shape(
                 let paste_top =
                     sprite_global.global_zero_y - sprite_data[x].regions[y].region_zero_y;
 
-                if let Err(_) =
-                    out_image
-                        .lock()
-                        .unwrap()
-                        .copy_from(&rotated_image, paste_left, paste_top)
+                if out_image
+                    .lock()
+                    .unwrap()
+                    .copy_from(&rotated_image, paste_left, paste_top)
+                    .is_err()
                 {
                     println!(
                         "{}",
@@ -626,7 +582,7 @@ fn write_shape(
 
         let save_path = out_dir.join(format!("{}_sprite_{:0>2$}.png", file_name, x, max_range));
 
-        if let Err(_) = out_image.lock().unwrap().save(save_path) {
+        if out_image.lock().unwrap().save(save_path).is_err() {
             return Err(Error::IoError(format!("{}", "Unable to save image.".red())));
         }
 
@@ -720,36 +676,29 @@ fn region_rotation(region: &mut Region) {
     // px, qx mean "where in x is point 1, according to point 0"
     // py, qy mean "where in y is point 1, according to point 0"
     // Possible values are "m"ore, "l"ess and "s"ame.
-    let px = if region.sheet_points[1].x > region.sheet_points[0].x {
-        Rotation::More
-    } else if region.sheet_points[1].x < region.sheet_points[0].x {
-        Rotation::Less
-    } else {
-        Rotation::Same
+    let px = match region.sheet_points[1].x.cmp(&region.sheet_points[0].x) {
+        Ordering::Greater => Rotation::More,
+        Ordering::Less => Rotation::Less,
+        Ordering::Equal => Rotation::Same,
     };
 
-    let py = if region.sheet_points[1].y < region.sheet_points[0].y {
-        Rotation::More
-    } else if region.sheet_points[1].y > region.sheet_points[0].y {
-        Rotation::Less
-    } else {
-        Rotation::Same
+    // More -> Less here.
+    let py = match region.sheet_points[1].y.cmp(&region.sheet_points[0].y) {
+        Ordering::Greater => Rotation::Less,
+        Ordering::Less => Rotation::More,
+        Ordering::Equal => Rotation::Same,
     };
 
-    let qx = if region.shape_points[1].x > region.shape_points[0].x {
-        Rotation::More
-    } else if region.shape_points[1].x < region.shape_points[0].x {
-        Rotation::Less
-    } else {
-        Rotation::Same
+    let qx = match region.shape_points[1].x.cmp(&region.shape_points[0].x) {
+        Ordering::Greater => Rotation::More,
+        Ordering::Less => Rotation::Less,
+        Ordering::Equal => Rotation::Same,
     };
 
-    let qy = if region.shape_points[1].y > region.shape_points[0].y {
-        Rotation::More
-    } else if region.shape_points[1].y < region.shape_points[0].y {
-        Rotation::Less
-    } else {
-        Rotation::Same
+    let qy = match region.shape_points[1].y.cmp(&region.shape_points[0].y) {
+        Ordering::Greater => Rotation::More,
+        Ordering::Less => Rotation::Less,
+        Ordering::Equal => Rotation::Same,
     };
 
     // Now, define rotation.

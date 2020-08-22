@@ -1,5 +1,7 @@
 # sc_extract
 
+[![build badge][]][build link] [![release badge][]][release link] [![crates.io badge][]][crates.io link] [![license badge][]][license link] [![rust 2018 badge]][rust 2018 link]
+
 `sc_extract` is a very fast tool to extract graphics and decode csv files from Supercell's game files.
 
 This tool is simply intended to get high quality graphics and data from the files. It is in no way an attempt to:
@@ -29,8 +31,8 @@ sc_extract is a standalone tool but provides a simple Rust crate with a clean AP
 
 This tool is a Rust implementation of these scripts:
 
-- [cr-sc-dump](https://github.com/123456abcdef/cr-sc-dump): tex_sc and csv extraction
-- [sc_decode](https://github.com/Galaxy1036/sc_decode): extraction of individual images from tex_sc sprites
+- [cr-sc-dump]: tex_sc and csv extraction
+- [sc_decode]: extraction of individual images from tex_sc sprites
 
 The Python implementations take a long time to extract images from huge files. sc_extract can extract data very quickly. Some comparisons are as below:
 
@@ -44,11 +46,11 @@ The time sc_extract takes can be further reduced by using the [`parallelize` fla
 
 ## Installation
 
-`sc_extract` can be installed in three ways. [The first method](#downloading-precompiled-binary-recommended) is the fastest and does not require you to install Rust. [Second](#using-cargo-install) and [third](#building-from-source) methods require you to install [Rust's 2018 version](https://www.rust-lang.org/tools/install). Rust is available for a large number of operating systems. Clicking on the above link above will take you to Rust's installation page.
+`sc_extract` can be installed in three ways. [The first method](#downloading-precompiled-binary-recommended) is the fastest and does not require you to install Rust. [Second](#using-cargo-install) and [third](#building-from-source) methods require you to install [Rust's 2018 version]. Rust is available for a large number of operating systems. Clicking on the above link above will take you to Rust's installation page.
 
 ### Downloading Precompiled Binary (Recommended)
 
-You can find precompiled binaries for multiple operating systems and architectures [here](https://github.com/AriusX7/sc-extract/releases).
+You can find precompiled binaries for multiple operating systems and architectures [here][releases].
 
 Download the binary which is appropriate for your machine. After downloading, unzip the folder. You should see the following three files inside:
 
@@ -60,13 +62,13 @@ Now, `cd` into this directory and follow steps described [here](#usage) to use i
 
 ### Using `cargo install`
 
-sc_extract is available on [crates.io](https://crates.io/crates/sc_extract). You can install and build this tool by simply using `cargo install sc_extract` command from the terminal. The installation process will take a few minutes to build all dependencies, but once that's done, the tool will work very, very fast.
+sc_extract is available on [crates.io][crates.io link]. You can install and build this tool by simply using `cargo install sc_extract` command from the terminal. The installation process will take a few minutes to build all dependencies, but once that's done, the tool will work very, very fast.
 
 It will also add this tool to the shell path automatically, allowing you to use the tool from *any* directory.
 
 ### Building From Source
 
-You can download this tool's [source code](https://codeload.github.com/AriusX7/sc-extract/zip/master) and build it yourself by using `cargo build --release` command. You need to `cd` into this tool's directory before executing that command. Do not forgot the `--release` flag or your tool will work very slowly.
+You can download this tool's [source code] and build it yourself by using `cargo build --release` command. You need to `cd` into this tool's directory before executing that command. Do not forgot the `--release` flag or your tool will work very slowly.
 
 **Note:** In the below example commands, it will be assumed that you have installed the tool using first or second method. If you installed from the source, you will have to replace `sc_extract` with `cargo run --release` in all commands.
 
@@ -134,7 +136,7 @@ The above command uses `./sc` as the source directory. It goes over all files in
 
 ### Using QuickBMS To Extract `.sc` Files
 
-[QuickBMS](https://aluigi.altervista.org/quickbms.htm) is required to extract `.sc` files. You will also need [clash_royale.bms](http://aluigi.altervista.org/bms/clash_royale.bms). QuickBMS can be downloaded for macOS [here](https://github.com/ryopei/quickbms-macos/releases/tag/v0.8.0).
+[QuickBMS] is required to extract `.sc` files. You will also need [clash_royale.bms]. QuickBMS can be downloaded for macOS [here][quickbms macos].
 
 Copy QuickBMS and clash_royale.bms into the directory with `.sc` files (not `_tex.sc`) and then run this command:
 
@@ -148,7 +150,7 @@ Running the command will create a new file for each `.sc` file in the folder. Th
 
 ## Updating
 
-If you used a pre-compiled binary, you'll simply have to download a new binary for the newer version from the [Releases](https://github.com/AriusX7/sc-extract/releases) page.
+If you used a pre-compiled binary, you'll simply have to download a new binary for the newer version from the [Releases][releases] page.
 
 If you installed the tool using `cargo install`, you can update the tool by simply reusing the `cargo install sc_extract` command. If it fails to update the tool, you can force it by adding the `--force` flag, like so: `cargo install sc_extract --force`.
 
@@ -162,7 +164,30 @@ sc_extract is available under the `MIT` license. See [LICENSE](LICENSE) for more
 
 This tool wouldn't exist if the following didn't create the original Python scripts.
 
-- [athlan20](https://github.com/athlan20)
-- [clanner](https://github.com/clanner)
-- [Galaxy1036](https://github.com/Galaxy1036)
-- [umop-aplsdn](https://github.com/umop-aplsdn)
+- [athlan20]
+- [clanner]
+- [Galaxy1036]
+- [umop-aplsdn]
+
+[cr-sc-dump]: https://github.com/123456abcdef/cr-sc-dump
+[sc_decode]: https://github.com/Galaxy1036/sc_decode
+[Rust's 2018 version]: https://www.rust-lang.org/tools/install
+[releases]: https://github.com/AriusX7/sc-extract/releases
+[source code]: https://codeload.github.com/AriusX7/sc-extract/zip/master
+[QuickBMS]: https://aluigi.altervista.org/quickbms.html
+[quickbms macos]: https://github.com/ryopei/quickbms-macos/releases/tag/v0.8.0
+[clash_royale.bms]: http://aluigi.altervista.org/bms/clash_royale.bms
+[athlan20]: https://github.com/athlan20
+[clanner]: https://github.com/clanner
+[Galaxy1036]: https://github.com/Galaxy1036
+[umop-aplsdn]: https://github.com/umop-aplsdn
+[build link]: https://travis-ci.com/github/AriusX7/sc-extract
+[build badge]: https://img.shields.io/travis/AriusX7/sc-extract?style=for-the-badge
+[release badge]: https://img.shields.io/github/v/release/AriusX7/sc-extract?color=00A1D0&style=for-the-badge
+[release link]: https://github.com/AriusX7/sc-extract/releases/tag/v1.0.0
+[license badge]: https://img.shields.io/badge/license-MIT-8E3FFF.svg?style=for-the-badge
+[license link]: https://github.com/AriusX7/sc-extract/blob/master/LICENSE
+[crates.io link]: https://crates.io/crates/sc_extract
+[crates.io badge]: https://img.shields.io/crates/v/sc_extract?color=ea8b27&style=for-the-badge
+[rust 2018 badge]: https://img.shields.io/badge/rust-2018-93450a.svg?style=for-the-badge
+[rust 2018 link]: https://blog.rust-lang.org/2018/12/06/Rust-1.31-and-rust-2018.html
