@@ -4,3 +4,4 @@ Cargo.lock
 /csv
 .vscode/
 /tests/out
+.DS_Store
