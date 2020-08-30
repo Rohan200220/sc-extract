@@ -9,6 +9,9 @@ use std::{
 };
 use structopt::StructOpt;
 
+/// A very fast tool to extract graphics and data from Supercell's game files.
+///
+/// sc_extract supports extraction of the following files: `_tex.sc`, extracted `.sc` and `.csv`.
 #[derive(StructOpt)]
 struct Options {
     /// The path to directory containing `_tex.sc` or `.csv` files or
@@ -17,7 +20,8 @@ struct Options {
     path: PathBuf,
 
     /// The path to directory where an extracts folder is created to save output.
-    /// If not specified, `extracts` is created inside `path`.
+    ///
+    /// If not specified, `extracts` directory is created inside `path`.
     #[structopt(parse(from_os_str), short = "o", long = "out")]
     out_dir: Option<PathBuf>,
 
@@ -25,23 +29,27 @@ struct Options {
     #[structopt(short = "d", long = "delete")]
     delete: bool,
 
-    /// Extracts all images in parallel. It makes the process faster.
+    /// Extracts all images in parallel, making the process faster.
     #[structopt(short = "p", long = "parallelize")]
     parallelize: bool,
 
     /// The path to directory where a `_tex.sc` file's extracted images are stored.
+    ///
     /// It is required for cutting images using extracted `.sc` files. If the
     /// path is not specified, sc_extract will look for the png files in the
     /// directory where the source (extracted `.sc`) file(s) is/are present.
     #[structopt(parse(from_os_str), short = "P", long = "png")]
     png_dir: Option<PathBuf>,
 
-    /// Specifies the type of files you want to extract. Possible values are
-    /// "csv", "sc" and "tex". By default, all types are considered.
+    /// Specifies the type of files you want to extract.
+    ///
+    /// Possible values are "csv", "sc" and "tex". By default, all types are considered.
     #[structopt(short = "t", long = "type")]
     kind: Option<FileType>,
 
-    /// sc_extract autmatically filters some common error-prone files like
+    /// Disable filtering of common error-prone files.
+    /// 
+    /// sc_extract automatically filters some common error-prone files like
     /// `quickbms` and `.DS_Store`. You can disable this filter by adding this
     /// flag.
     #[structopt(short = "F", long = "disable-filter")]
