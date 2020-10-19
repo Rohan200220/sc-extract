@@ -196,7 +196,7 @@ fn process_file(
     Ok(())
 }
 
-fn main() {
+fn main(){
     let opts: Options = Options::from_args();
 
     let path = if let Some(ref p) = opts.path {
@@ -233,9 +233,13 @@ fn main() {
         }
     };
 
-    if !out_dir.exists() {
-        fs::create_dir_all(&out_dir).unwrap();
-    }
+    let created_out = if !out_dir.exists() {
+        fs::create_dir_all(&out_dir).expect("Expected to be able to create a directory.");
+
+        true
+    } else {
+        false
+    };
 
     if path.is_dir() {
         let found_one = AtomicBool::new(false);
@@ -246,7 +250,7 @@ fn main() {
                     "{}",
                     format!(
                         "Failed to read contents of {} directory/folder.",
-                        path.to_str().unwrap().red()
+                        path.to_str().expect("Expected path to be valid UTF-8.").red()
                     )
                     .red()
                 );
@@ -292,6 +296,11 @@ fn main() {
             false,
             &opts
         );
+    }
+
+    if created_out {
+        // Returns an error if directory is not empty. We ignore that.
+        let _ = fs::remove_dir(&out_dir);
     }
 
     println!("\n{}", "Extraction finished!".green().bold());
