@@ -13,11 +13,13 @@ use structopt::StructOpt;
 ///
 /// sc_extract supports extraction of the following files: `_tex.sc`, extracted `.sc` and `.csv`.
 #[derive(StructOpt)]
+#[structopt(name="sc")]
 struct Options {
-    /// The path to directory containing `_tex.sc` or `.csv` files or
-    /// path to an `_tex.sc` or `.csv` file.
+    /// The path to a file to extract or directory with files to extract.
+    ///
+    /// If not specified, the current directory is used.
     #[structopt(parse(from_os_str))]
-    path: PathBuf,
+    path: Option<PathBuf>,
 
     /// The path to directory where an extracts folder is created to save output.
     ///
@@ -197,15 +199,36 @@ fn process_file(
 fn main() {
     let opts: Options = Options::from_args();
 
+    let path = if let Some(ref p) = opts.path {
+        p.clone()
+    } else {
+        if let Ok(p) = std::env::current_dir() {
+            p
+        } else {
+            println!("{}", "Expected to access the current directory.".red());
+            std::process::exit(1);
+        }
+    };
+
     let out_dir = match &opts.out_dir {
         Some(p) => p.join("extracts"),
         None => {
-            if opts.path.is_dir() {
-                opts.path.join("extracts")
-            } else if opts.path.is_file() {
-                opts.path.parent().unwrap().join("extracts")
+            if path.is_dir() {
+                path.join("extracts")
+            } else if path.is_file() {
+                if let Some(p) = path.parent() {
+                    p.join("extracts")
+                } else {
+                    println!("{}", "Expected path to have a parent.".red());
+                    std::process::exit(1);
+                }
             } else {
-                std::env::current_dir().unwrap().join("extracts")
+                if let Ok(p) = std::env::current_dir() {
+                    p.join("extracts")
+                } else {
+                    println!("{}", "Expected to access the current directory.".red());
+                    std::process::exit(1);
+                }
             }
         }
     };
@@ -214,16 +237,16 @@ fn main() {
         fs::create_dir_all(&out_dir).unwrap();
     }
 
-    if opts.path.is_dir() {
+    if path.is_dir() {
         let found_one = AtomicBool::new(false);
-        let dir_entries = match fs::read_dir(&opts.path) {
+        let dir_entries = match fs::read_dir(&path) {
             Ok(e) => e,
             Err(_) => {
                 println!(
                     "{}",
                     format!(
                         "Failed to read contents of {} directory/folder.",
-                        opts.path.to_str().unwrap().red()
+                        path.to_str().unwrap().red()
                     )
                     .red()
                 );
@@ -238,15 +261,15 @@ fn main() {
 
         if opts.parallelize {
             entries.into_par_iter().for_each(|entry| {
-                let path = entry.unwrap().path();
-                if process_file(&path, &out_dir, true, &opts).is_ok() {
+                let file_path = entry.unwrap().path();
+                if process_file(&file_path, &out_dir, true, &opts).is_ok() {
                     found_one.compare_and_swap(false, true, Ordering::AcqRel);
                 }
             })
         } else {
             for entry in entries {
-                let path = entry.unwrap().path();
-                if process_file(&path, &out_dir, false, &opts).is_ok()
+                let file_path = entry.unwrap().path();
+                if process_file(&file_path, &out_dir, false, &opts).is_ok()
                 {
                     found_one.compare_and_swap(false, true, Ordering::AcqRel);
                 }
@@ -262,9 +285,9 @@ fn main() {
             );
             std::process::exit(1);
         }
-    } else if opts.path.is_file() {
+    } else if path.is_file() {
         let _ = process_file(
-            &opts.path,
+            &path,
             &out_dir,
             false,
             &opts
