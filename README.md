@@ -89,10 +89,12 @@ cd path_to_sc_extract
 Then, simply use the following command to extract the required files!
 
 ```sh
-sc_extract [FLAGS] [OPTIONS] <path>
+sc_extract [FLAGS] [OPTIONS] [path]
 ```
 
 `path` must be a valid path pointing to a single `_tex.sc`, extracted `sc` or `.csv` file or a directory containing those files. See [Flags and Options](#flags-and-options) section to know more about them.
+
+If `path` is not given, the current directory is used as the path.
 
 If you installed the tool using the source code, you may want to build the tool and all the dependencies prior to extracting the files. You can do so by run the `cargo build --release` command in the tool's directory. Building will take a couple of minutes, but running the tool in future will be very fast.
 
