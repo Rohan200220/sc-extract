@@ -13,7 +13,7 @@ use structopt::StructOpt;
 ///
 /// sc_extract supports extraction of the following files: `_tex.sc`, extracted `.sc` and `.csv`.
 #[derive(StructOpt)]
-#[structopt(name="sc")]
+#[structopt(name = "sce")]
 struct Options {
     /// The path to a file to extract or directory with files to extract.
     ///
@@ -50,7 +50,7 @@ struct Options {
     kind: Option<FileType>,
 
     /// Disable filtering of common error-prone files.
-    /// 
+    ///
     /// sc_extract automatically filters some common error-prone files like
     /// `quickbms` and `.DS_Store`. You can disable this filter by adding this
     /// flag.
@@ -77,7 +77,7 @@ impl FromStr for FileType {
             "csv" => Ok(Self::Csv),
             "sc" => Ok(Self::Sc),
             "tex" => Ok(Self::Tex),
-            _ => Err("File type must be one of `csv`, `sc` and `tex`.")
+            _ => Err("File type must be one of `csv`, `sc` and `tex`."),
         }
     }
 }
@@ -196,7 +196,7 @@ fn process_file(
     Ok(())
 }
 
-fn main(){
+fn main() {
     let opts: Options = Options::from_args();
 
     let path = if let Some(ref p) = opts.path {
@@ -250,7 +250,9 @@ fn main(){
                     "{}",
                     format!(
                         "Failed to read contents of {} directory/folder.",
-                        path.to_str().expect("Expected path to be valid UTF-8.").red()
+                        path.to_str()
+                            .expect("Expected path to be valid UTF-8.")
+                            .red()
                     )
                     .red()
                 );
@@ -273,8 +275,7 @@ fn main(){
         } else {
             for entry in entries {
                 let file_path = entry.unwrap().path();
-                if process_file(&file_path, &out_dir, false, &opts).is_ok()
-                {
+                if process_file(&file_path, &out_dir, false, &opts).is_ok() {
                     found_one.compare_and_swap(false, true, Ordering::AcqRel);
                 }
             }
@@ -290,12 +291,7 @@ fn main(){
             std::process::exit(1);
         }
     } else if path.is_file() {
-        let _ = process_file(
-            &path,
-            &out_dir,
-            false,
-            &opts
-        );
+        let _ = process_file(&path, &out_dir, false, &opts);
     }
 
     if created_out {
