@@ -200,7 +200,7 @@ pub fn process_sc(
                     png_path.to_str().unwrap(),
                 )
                 .red()
-                .to_string()
+                .to_string(),
             ));
         }
     }
@@ -435,8 +435,7 @@ fn write_shape(
 
             region_rotation(&mut sprite_item.regions[y]);
 
-            if sprite_item.regions[y].rotation == 90 || sprite_item.regions[y].rotation == 270
-            {
+            if sprite_item.regions[y].rotation == 90 || sprite_item.regions[y].rotation == 270 {
                 sprite_item.regions[y].sprite_width = (region_max_y - region_min_y) as u32;
                 sprite_item.regions[y].sprite_height = (region_max_x - region_min_x) as u32;
             } else {
