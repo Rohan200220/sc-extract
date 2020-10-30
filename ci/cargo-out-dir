@@ -16,7 +16,7 @@ fi
 # This works by finding the most recent stamp file, which is produced by
 # every sc_extract build.
 target_dir="$1"
-find "$target_dir" -name sc_extract-stamp -print0 \
+find "$target_dir" -name sc-extract-stamp -print0 \
   | xargs -0 ls -t \
   | head -n1 \
   | xargs dirname
